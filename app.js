@@ -4,7 +4,6 @@
    No database tables. No permanent answers.
    Supabase Realtime + Anonymous Auth.
 ========================================= */
-
 const SUPABASE_URL = "https://qfbtduuorxiwawawstdw.supabase.co";
 const SUPABASE_KEY = "sb_publishable_H50cKJkig7yKxPy3Tb8L2g_IynrjV7l";
 
