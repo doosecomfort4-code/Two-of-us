@@ -1,16 +1,15 @@
 
-
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap');
+/* TWO OF US — DUSTY ROSE & MATCHA */
 
 :root {
   --cream: #fffaf2;
   --rose: #d5a6a5;
   --rose-light: #f5e3e1;
+  --rose-dark: #ad7778;
   --matcha: #9ba98a;
   --matcha-dark: #596b4d;
   --brown: #594b43;
   --white: #ffffff;
-  --shadow: 0 12px 35px rgba(89, 75, 67, 0.09);
 }
 
 * {
@@ -21,12 +20,9 @@
 
 body {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 10% 10%, #f5e3e1 0, transparent 35%),
-    radial-gradient(circle at 90% 90%, #e8eddf 0, transparent 35%),
-    var(--cream);
+  background: var(--cream);
   color: var(--brown);
-  font-family: 'DM Sans', sans-serif;
+  font-family: Georgia, "Times New Roman", serif;
   padding: 24px 16px;
 }
 
@@ -36,255 +32,188 @@ textarea {
   font: inherit;
 }
 
-.app {
-  width: 100%;
-  max-width: 540px;
-  margin: 0 auto;
+button {
+  border: none;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  filter: brightness(0.97);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .screen {
   width: 100%;
-  min-height: 75vh;
-  padding: 35px 22px;
-  background: rgba(255, 255, 255, 0.75);
-  border: 1px solid rgba(213, 166, 165, 0.25);
-  border-radius: 28px;
-  box-shadow: var(--shadow);
+  max-width: 480px;
+  min-height: 70vh;
+  margin: 30px auto;
+  padding: 38px 25px;
+  background: var(--white);
+  border: 1px solid #f0dfd9;
+  border-radius: 25px;
+  box-shadow: 0 12px 40px rgba(89, 75, 67, 0.08);
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 19px;
-  animation: appear 0.5s ease;
+  gap: 20px;
 }
 
 .hidden {
   display: none !important;
 }
 
-@keyframes appear {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.heart {
-  font-size: 65px;
-  color: var(--rose);
-  line-height: 1;
-}
-
-.eyebrow {
-  color: var(--matcha-dark);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 3px;
-}
-
 h1 {
-  font-family: 'Playfair Display', serif;
-  font-size: clamp(36px, 9vw, 49px);
-  font-weight: 600;
-  color: var(--brown);
-  line-height: 1.15;
+  color: var(--rose-dark);
+  font-size: 2.3rem;
+  line-height: 1.2;
 }
 
 h2 {
-  font-family: 'Playfair Display', serif;
-  font-size: 25px;
+  color: var(--matcha-dark);
+  font-size: 1.7rem;
 }
 
 h3 {
-  font-size: 16px;
-  font-weight: 600;
+  color: var(--rose-dark);
 }
 
-.subtitle {
-  max-width: 340px;
-  line-height: 1.8;
-  font-size: 14px;
-  color: #85766d;
+p {
+  font-size: 1rem;
+  line-height: 1.7;
 }
 
 button {
-  width: 100%;
-  max-width: 340px;
-  min-height: 53px;
-  border: none;
-  border-radius: 16px;
+  min-height: 48px;
+  padding: 13px 24px;
+  border-radius: 30px;
   background: var(--rose);
   color: var(--white);
-  font-weight: 700;
-  cursor: pointer;
-  transition: 0.2s ease;
-  box-shadow: 0 7px 18px rgba(213, 166, 165, 0.2);
+  font-weight: bold;
+  font-size: 0.95rem;
 }
 
-button:hover {
-  transform: translateY(-2px);
-  filter: brightness(1.03);
-}
-
-button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  transform: none;
-}
-
-button.secondary {
+#startButton,
+#startGameButton,
+#submitAnswerButton,
+#replayButton {
   background: var(--matcha);
-  box-shadow: 0 7px 18px rgba(155, 169, 138, 0.18);
+  color: white;
 }
 
-.player-card,
-.room-card,
-.join-card,
-.question-card {
-  width: 100%;
-  max-width: 380px;
-  padding: 25px 20px;
-  border-radius: 22px;
-  background: var(--cream);
-  border: 1px solid #eee2d9;
-}
-
-.player-card span {
-  font-size: 30px;
-  color: var(--rose);
-}
-
-.player-card p,
-.room-card p {
-  color: #8b7e74;
-  font-size: 13px;
-  margin-top: 8px;
-}
-
-.join-card {
-  display: flex;
-  flex-direction: column;
-  gap: 13px;
-  background: #f7f8f1;
+#joinRoomButton {
+  background: var(--rose);
 }
 
 input,
-textarea {
+textarea,
+select {
   width: 100%;
-  padding: 15px;
-  border: 1px solid #e7d9d0;
+  max-width: 350px;
+  padding: 14px 16px;
+  border: 1px solid #e5d5ce;
   border-radius: 13px;
-  background: var(--white);
+  background: var(--cream);
   color: var(--brown);
   outline: none;
-  resize: vertical;
 }
 
 input:focus,
-textarea:focus {
+textarea:focus,
+select:focus {
   border-color: var(--rose);
-  box-shadow: 0 0 0 3px rgba(213, 166, 165, 0.12);
+  box-shadow: 0 0 0 3px var(--rose-light);
 }
 
-.room-card h2 {
-  margin: 12px 0 20px;
+textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+#roomCodeDisplay {
+  padding: 14px 22px;
+  background: var(--rose-light);
+  border-radius: 12px;
+  color: var(--rose-dark);
+  font-size: 1.5rem;
+  font-weight: bold;
   letter-spacing: 5px;
-  color: var(--matcha-dark);
-}
-
-.message {
-  min-height: 20px;
-  font-size: 13px;
-  color: var(--matcha-dark);
 }
 
 #playersList {
   width: 100%;
-  max-width: 340px;
   padding: 15px;
-  background: #f7f8f1;
+  background: var(--cream);
   border-radius: 14px;
-  line-height: 2;
 }
 
-.progress-area {
-  width: 100%;
-  max-width: 380px;
-  text-align: left;
-  color: #8b7e74;
-  font-size: 12px;
+#questionText {
+  font-size: 1.35rem;
+  line-height: 1.6;
+  color: var(--brown);
 }
 
-.progress-track {
-  height: 8px;
-  background: #eee6df;
-  border-radius: 20px;
-  margin-top: 10px;
-  overflow: hidden;
+#stageTitle {
+  color: var(--rose-dark);
+  font-size: 1rem;
+  letter-spacing: 1px;
 }
 
 #progressBar {
-  width: 1%;
+  width: 100%;
+  height: 9px;
+  background: var(--rose-light);
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+#progressFill {
   height: 100%;
+  width: 0;
   background: var(--matcha);
-  border-radius: inherit;
+  border-radius: 20px;
   transition: width 0.3s ease;
-}
-
-.question-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 18px;
-}
-
-.question-number {
-  font-size: 27px;
-  color: var(--rose);
-}
-
-.question-card h2 {
-  font-size: 23px;
-  line-height: 1.5;
-}
-
-.question-card textarea {
-  min-height: 120px;
-}
-
-.partner-status {
-  color: var(--matcha-dark);
-  font-size: 13px;
-  font-weight: 600;
 }
 
 .answers-display {
   width: 100%;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 
 .answer-card {
-  padding: 18px;
-  background: #f7f8f1;
-  border-radius: 16px;
+  padding: 16px;
+  background: var(--cream);
+  border-left: 4px solid var(--matcha);
+  border-radius: 12px;
   text-align: left;
-  line-height: 1.7;
-  overflow-wrap: anywhere;
 }
 
-.answer-card h3 {
-  color: var(--matcha-dark);
-  margin-bottom: 8px;
+#playerChoice {
+  margin: 10px auto;
 }
 
-#resultsContent {
-  width: 100%;
-  display: grid;
-  gap: 12px;
+@media (max-width: 480px) {
+  body {
+    padding: 12px;
+  }
+
+  .screen {
+    margin: 15px auto;
+    min-height: 75vh;
+    padding: 28px 18px;
+  }
+
+  h1 {
+    font-size: 2rem;
+  }
 }
