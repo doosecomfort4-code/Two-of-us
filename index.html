@@ -1,0 +1,355 @@
+
+-- TWO OF US
+-- Secure database foundation
+
+create extension if not exists pgcrypto with schema extensions;
+
+-- 1. Player profiles
+create table public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  username text not null unique,
+  created_at timestamptz not null default now()
+);
+
+-- 2. Private rooms
+create table public.rooms (
+  id uuid primary key default gen_random_uuid(),
+  invite_code text not null unique,
+  created_by uuid not null references auth.users(id),
+  is_open boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+-- 3. Exactly two possible members per room
+create table public.room_members (
+  room_id uuid not null references public.rooms(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  joined_at timestamptz not null default now(),
+  primary key (room_id, user_id)
+);
+
+-- 4. Separate rounds for every replay
+create table public.rounds (
+  id uuid primary key default gen_random_uuid(),
+  room_id uuid not null references public.rooms(id) on delete cascade,
+  round_number integer not null,
+  status text not null default 'active'
+    check (status in ('active', 'completed')),
+  current_stage integer not null default 1
+    check (current_stage between 1 and 10),
+  created_at timestamptz not null default now(),
+  unique (room_id, round_number)
+);
+
+-- 5. Answers
+create table public.answers (
+  id uuid primary key default gen_random_uuid(),
+  round_id uuid not null references public.rounds(id) on delete cascade,
+  user_id uuid not null references auth.users(id),
+  question_id text not null,
+  answer text not null default '',
+  updated_at timestamptz not null default now(),
+  unique (round_id, user_id, question_id)
+);
+
+-- 6. Replay requests
+create table public.replay_requests (
+  round_id uuid not null references public.rounds(id) on delete cascade,
+  user_id uuid not null references auth.users(id),
+  requested_at timestamptz not null default now(),
+  primary key (round_id, user_id)
+);
+
+-- 7. Enable row-level security
+alter table public.profiles enable row level security;
+alter table public.rooms enable row level security;
+alter table public.room_members enable row level security;
+alter table public.rounds enable row level security;
+alter table public.answers enable row level security;
+alter table public.replay_requests enable row level security;
+
+-- 8. Security helper
+create or replace function public.is_room_member(target_room uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from public.room_members m
+    where m.room_id = target_room
+      and m.user_id = (select auth.uid())
+  );
+$$;
+
+revoke all on function public.is_room_member(uuid) from public;
+grant execute on function public.is_room_member(uuid)
+to authenticated;
+
+-- 9. Profile policies
+create policy "View own or room partner profiles"
+on public.profiles for select
+to authenticated
+using (
+  id = (select auth.uid())
+  or exists (
+    select 1
+    from public.room_members mine
+    join public.room_members partner
+      on partner.room_id = mine.room_id
+    where mine.user_id = (select auth.uid())
+      and partner.user_id = profiles.id
+  )
+);
+
+-- 10. Room policies
+create policy "Members view their rooms"
+on public.rooms for select
+to authenticated
+using (public.is_room_member(id));
+
+-- 11. Membership policies
+create policy "Members view their room membership"
+on public.room_members for select
+to authenticated
+using (public.is_room_member(room_id));
+
+-- 12. Round policies
+create policy "Members view room rounds"
+on public.rounds for select
+to authenticated
+using (public.is_room_member(room_id));
+
+-- 13. Answer policies
+create policy "Members view room answers"
+on public.answers for select
+to authenticated
+using (
+  exists (
+    select 1
+    from public.rounds r
+    where r.id = answers.round_id
+      and public.is_room_member(r.room_id)
+  )
+);
+
+create policy "Players insert their own answers"
+on public.answers for insert
+to authenticated
+with check (
+  user_id = (select auth.uid())
+  and exists (
+    select 1
+    from public.rounds r
+    where r.id = answers.round_id
+      and r.status = 'active'
+      and public.is_room_member(r.room_id)
+  )
+);
+
+create policy "Players update their own answers"
+on public.answers for update
+to authenticated
+using (user_id = (select auth.uid()))
+with check (
+  user_id = (select auth.uid())
+  and exists (
+    select 1
+    from public.rounds r
+    where r.id = answers.round_id
+      and r.status = 'active'
+      and public.is_room_member(r.room_id)
+  )
+);
+
+-- 14. Replay request policies
+create policy "Room members view replay requests"
+on public.replay_requests for select
+to authenticated
+using (
+  exists (
+    select 1
+    from public.rounds r
+    where r.id = replay_requests.round_id
+      and public.is_room_member(r.room_id)
+  )
+);
+
+-- 15. Secure room creation
+create or replace function public.create_room()
+returns table (room_id uuid, invite_code text)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  new_id uuid;
+  new_code text;
+begin
+  if auth.uid() is null then
+    raise exception 'Please log in first';
+  end if;
+
+  if not exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid()
+  ) then
+    raise exception 'Complete your profile first';
+  end if;
+
+  new_code := upper(encode(extensions.gen_random_bytes(8), 'hex'));
+
+  insert into public.rooms (invite_code, created_by)
+  values (new_code, auth.uid())
+  returning id into new_id;
+
+  insert into public.room_members (room_id, user_id)
+  values (new_id, auth.uid());
+
+  insert into public.rounds (room_id, round_number)
+  values (new_id, 1);
+
+  return query select new_id, new_code;
+end;
+$$;
+
+-- 16. Secure room joining
+create or replace function public.join_room(code text)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  target_id uuid;
+  total_members integer;
+begin
+  if auth.uid() is null then
+    raise exception 'Please log in first';
+  end if;
+
+  if not exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid()
+  ) then
+    raise exception 'Complete your profile first';
+  end if;
+
+  select id into target_id
+  from public.rooms
+  where invite_code = upper(trim(code))
+    and is_open = true
+  for update;
+
+  if target_id is null then
+    raise exception 'Invalid or closed invitation';
+  end if;
+
+  if exists (
+    select 1 from public.room_members
+    where room_id = target_id
+      and user_id = auth.uid()
+  ) then
+    return target_id;
+  end if;
+
+  select count(*) into total_members
+  from public.room_members
+  where room_id = target_id;
+
+  if total_members >= 2 then
+    raise exception 'This room already has two players';
+  end if;
+
+  insert into public.room_members (room_id, user_id)
+  values (target_id, auth.uid());
+
+  return target_id;
+end;
+$$;
+
+-- 17. Submit a replay request
+create or replace function public.request_replay(target_round uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  target_room uuid;
+  member_total integer;
+  request_total integer;
+  next_number integer;
+begin
+  if auth.uid() is null then
+    raise exception 'Please log in first';
+  end if;
+
+  select room_id into target_room
+  from public.rounds
+  where id = target_round
+    and status = 'completed';
+
+  if target_room is null
+     or not public.is_room_member(target_room) then
+    raise exception 'Round unavailable';
+  end if;
+
+  insert into public.replay_requests(round_id, user_id)
+  values (target_round, auth.uid())
+  on conflict do nothing;
+
+  select count(*) into member_total
+  from public.room_members
+  where room_id = target_room;
+
+  select count(*) into request_total
+  from public.replay_requests
+  where round_id = target_round;
+
+  if member_total <> 2 or request_total <> 2 then
+    return false;
+  end if;
+
+  update public.rounds
+  set status = 'completed'
+  where id = target_round;
+
+  select coalesce(max(round_number), 0) + 1
+  into next_number
+  from public.rounds
+  where room_id = target_room;
+
+  insert into public.rounds(room_id, round_number)
+  values (target_room, next_number);
+
+  delete from public.replay_requests
+  where round_id = target_round;
+
+  return true;
+end;
+$$;
+
+-- 18. Function permissions
+revoke all on function public.create_room() from public;
+revoke all on function public.join_room(text) from public;
+revoke all on function public.request_replay(uuid) from public;
+
+grant execute on function public.create_room() to authenticated;
+grant execute on function public.join_room(text) to authenticated;
+grant execute on function public.request_replay(uuid) to authenticated;
+
+-- 19. Table permissions
+grant select on public.profiles, public.rooms,
+  public.room_members, public.rounds,
+  public.answers, public.replay_requests
+to authenticated;
+
+grant insert, update on public.answers to authenticated;
+
+-- 20. Realtime publication
+alter publication supabase_realtime add table public.answers;
+alter publication supabase_realtime add table public.rounds;
+alter publication supabase_realtime add table public.replay_requests;
