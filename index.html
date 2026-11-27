@@ -4,231 +4,133 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#f8eeee">
-  <title>Two of Us | A Little Question Book</title>
-  <link rel="stylesheet" href="styles.css">
+  <meta name="theme-color" content="#d5a6a5">
+  <title>Two of Us 💗</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<header class="topbar">
-  <a class="brand" href="#" onclick="showScreen('welcome')">
-    ♡ Two of Us
-  </a>
-  <span>A little question book</span>
-</header>
+  <main class="app">
 
-<main class="app">
+    <section id="welcomeScreen" class="screen">
+      <div class="welcome-content">
+        <span class="heart">♡</span>
+        <p class="eyebrow">A LITTLE SPACE FOR TWO</p>
+        <h1>Two of Us</h1>
+        <p class="subtitle">
+          A little question book for two hearts, no matter the distance.
+        </p>
+        <button id="startButton">Let's begin ♡</button>
+      </div>
+    </section>
 
-  <!-- WELCOME -->
-  <section id="welcome" class="screen active">
-    <div class="welcome-art">♡</div>
-    <p class="eyebrow">A SPACE FOR TWO</p>
-    <h1>Two of Us</h1>
-    <p class="subtitle">
-      100 little questions, countless conversations,
-      and memories waiting to be made.
-    </p>
-    <button class="primary-btn" onclick="showScreen('auth')">
-      Begin our little journey →
-    </button>
-    <p class="small-note">Made for two. Just two.</p>
-  </section>
+    <section id="homeScreen" class="screen hidden">
+      <p class="eyebrow">YOUR LITTLE WORLD</p>
+      <h1>Ready to play?</h1>
+      <p class="subtitle">Distance means nothing when two people connect.</p>
 
-  <!-- REGISTER AND LOGIN -->
-  <section id="auth" class="screen">
-    <p class="eyebrow">WELCOME TO YOUR LITTLE SPACE</p>
-    <h2>Let's get you started.</h2>
-    <p class="subtitle">Create your account or sign in.</p>
-
-    <div class="tabs">
-      <button class="tab active" id="registerTab"
-        onclick="setAuthMode('register')">Register</button>
-      <button class="tab" id="loginTab"
-        onclick="setAuthMode('login')">Log in</button>
-    </div>
-
-    <form id="authForm">
-      <label for="username">Your username</label>
-      <input id="username" type="text"
-        minlength="3" maxlength="24"
-        placeholder="Choose a username" required>
-
-      <label for="pin">Your private PIN</label>
-      <input id="pin" type="password"
-        inputmode="numeric" minlength="6"
-        maxlength="12" placeholder="6–12 digit PIN" required>
-
-      <button class="primary-btn" type="submit" id="authSubmit">
-        Create my account
-      </button>
-    </form>
-    <p id="authMessage" class="message"></p>
-    <p class="small-note">Keep your private PIN secret.</p>
-  </section>
-
-  <!-- DASHBOARD -->
-  <section id="dashboard" class="screen">
-    <p class="eyebrow">YOUR LITTLE CORNER</p>
-    <h2>Hello, <span id="playerName">friend</span> ♡</h2>
-    <p class="subtitle">What shall we do today?</p>
-
-    <div class="action-card">
-      <div class="card-icon">♡</div>
-      <h3>Create a private room</h3>
-      <p>Start a room and invite your special person.</p>
-      <button class="primary-btn" onclick="createRoom()">
-        Create room
-      </button>
-    </div>
-
-    <div class="action-card">
-      <div class="card-icon">✿</div>
-      <h3>Join a room</h3>
-      <p>Enter your invitation code.</p>
-      <input id="inviteCode" type="text"
-        placeholder="Enter room code">
-      <button class="secondary-btn" onclick="joinRoom()">
-        Join room
-      </button>
-    </div>
-
-    <p id="roomMessage" class="message"></p>
-    <button class="text-btn" onclick="logout()">Log out</button>
-  </section>
-
-  <!-- WAITING ROOM -->
-  <section id="waiting" class="screen">
-    <p class="eyebrow">YOUR PRIVATE ROOM</p>
-    <div class="welcome-art">♡</div>
-    <h2>Just waiting for two.</h2>
-    <p class="subtitle">Share this invitation code with your partner.</p>
-
-    <div class="invite-box">
-      <span id="roomCode">--------</span>
-      <button class="secondary-btn" onclick="copyRoomCode()">
-        Copy code
-      </button>
-    </div>
-
-    <div class="player-list">
-      <p>♡ <span id="firstPlayer">Player 1</span></p>
-      <p>♡ <span id="secondPlayer">Waiting for player 2...</span></p>
-    </div>
-    <p id="waitingMessage" class="message">
-      Your room begins when both players are present.
-    </p>
-  </section>
-
-  <!-- STAGE INTRO -->
-  <section id="stageIntro" class="screen">
-    <div class="welcome-art">✿</div>
-    <p class="eyebrow" id="stageNumber">STAGE 01</p>
-    <h2 id="stageTitle">Funny Beginnings</h2>
-    <p class="subtitle" id="stageDescription">
-      Let's start with a little laughter.
-    </p>
-    <button class="primary-btn" onclick="startStage()">
-      Open this chapter →
-    </button>
-  </section>
-
-  <!-- QUESTIONS -->
-  <section id="game" class="screen">
-    <div class="game-header">
-      <span id="stageLabel">STAGE 01</span>
-      <span id="questionCount">Question 1 of 10</span>
-    </div>
-
-    <div class="progress-track">
-      <div id="progressBar" class="progress-fill"></div>
-    </div>
-
-    <p class="eyebrow" id="gameCategory">FUNNY BEGINNINGS</p>
-    <h2 class="question" id="questionText">
-      What's the funniest thing you've ever done?
-    </h2>
-
-    <div class="answer-columns">
-      <div class="answer-card">
-        <h3 id="myName">You</h3>
-        <textarea id="myAnswer" rows="5"
-          placeholder="Write your answer here..."></textarea>
-        <span id="myStatus">Your answer</span>
+      <div class="player-card">
+        <span>♡</span>
+        <h2>Comfort & Felix</h2>
+        <p>Two players. One little game.</p>
       </div>
 
-      <div class="answer-card">
-        <h3 id="partnerName">Your person</h3>
-        <div id="partnerAnswer" class="partner-answer">
-          Their answer will appear here...
+      <button id="createRoomButton">Create a room</button>
+
+      <div class="join-card">
+        <h3>Already have a room code?</h3>
+        <input
+          id="roomCodeInput"
+          type="text"
+          placeholder="Enter room code"
+          maxlength="8"
+          autocomplete="off"
+        >
+        <button id="joinRoomButton" class="secondary">
+          Join room
+        </button>
+      </div>
+
+      <p id="homeMessage" class="message"></p>
+    </section>
+
+    <section id="roomScreen" class="screen hidden">
+      <p class="eyebrow">YOUR PRIVATE LITTLE SPACE</p>
+      <h1>You're connected ♡</h1>
+
+      <div class="room-card">
+        <p>Your room code</p>
+        <h2 id="roomCodeDisplay">--------</h2>
+        <button id="copyRoomButton" class="secondary">
+          Copy room code
+        </button>
+      </div>
+
+      <p id="roomStatus">Waiting for the other player...</p>
+      <div id="playersList"></div>
+
+      <button id="startGameButton" disabled>
+        Start our game ♡
+      </button>
+      <p id="roomMessage" class="message"></p>
+    </section>
+
+    <section id="gameScreen" class="screen hidden">
+      <p class="eyebrow" id="stageLabel">STAGE 1</p>
+      <h1 id="stageTitle">Getting to know us</h1>
+
+      <div class="progress-area">
+        <span id="questionCounter">Question 1 of 100</span>
+        <div class="progress-track">
+          <div id="progressBar"></div>
         </div>
-        <span id="partnerStatus">Waiting for their answer</span>
       </div>
-    </div>
 
-    <p id="gameMessage" class="message"></p>
+      <div class="question-card">
+        <span class="question-number">♡</span>
+        <h2 id="questionText">Our first question...</h2>
 
-    <button class="primary-btn" id="nextButton"
-      onclick="nextQuestion()" disabled>
-      Next question →
-    </button>
+        <textarea
+          id="myAnswer"
+          placeholder="Write your answer here..."
+          rows="5"
+        ></textarea>
 
-    <p class="small-note">
-      Both players must answer before moving forward.
-    </p>
-  </section>
+        <button id="submitAnswerButton">
+          Submit answer
+        </button>
 
-  <!-- STAGE COMPLETED -->
-  <section id="stageComplete" class="screen">
-    <div class="welcome-art">✿</div>
-    <p class="eyebrow">CHAPTER COMPLETED</p>
-    <h2>We did it! ♡</h2>
-    <p class="subtitle" id="stageCompleteText">
-      Another little chapter completed together.
-    </p>
-    <button class="primary-btn" onclick="nextStage()">
-      Continue together →
-    </button>
-  </section>
+        <p id="answerStatus" class="message"></p>
+      </div>
 
-  <!-- FINAL PAGE -->
-  <section id="finished" class="screen">
-    <div class="welcome-art">♡</div>
-    <p class="eyebrow">OUR LITTLE BOOK</p>
-    <h1>100 questions. One beautiful journey.</h1>
-    <p class="subtitle">
-      You reached the final chapter.
-      But this doesn't have to be the end.
-    </p>
+      <div id="partnerStatus" class="partner-status">
+        Waiting for the other player...
+      </div>
 
-    <button class="primary-btn" onclick="requestReplay()">
-      Replay our journey ↻
-    </button>
+      <div id="answersDisplay" class="answers-display"></div>
 
-    <button class="secondary-btn" onclick="reviewAnswers()">
-      Review our answers
-    </button>
+      <button id="nextQuestionButton" class="hidden">
+        Next question →
+      </button>
+    </section>
 
-    <p id="replayMessage" class="message"></p>
-  </section>
+    <section id="resultsScreen" class="screen hidden">
+      <span class="heart">♡</span>
+      <p class="eyebrow">OUR LITTLE JOURNEY</p>
+      <h1>We made it!</h1>
+      <p class="subtitle">
+        Every answer is another little piece of knowing each other.
+      </p>
 
-  <!-- ANSWER HISTORY -->
-  <section id="review" class="screen">
-    <p class="eyebrow">OUR MEMORIES</p>
-    <h2>Our answers ♡</h2>
-    <div id="reviewContent"></div>
-    <button class="secondary-btn" onclick="showScreen('finished')">
-      Back to ending
-    </button>
-  </section>
+      <div id="resultsContent"></div>
 
-</main>
+      <button id="replayButton">Play again ♡</button>
+      <p id="resultsMessage" class="message"></p>
+    </section>
 
-<footer>
-  <p>Two of Us ♡ Made for two hearts and countless conversations.</p>
-</footer>
+  </main>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="app.js"></script>
-
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js"></script>
 </body>
 </html>
