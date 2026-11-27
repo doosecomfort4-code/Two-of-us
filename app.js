@@ -1,1106 +1,573 @@
 
-/* =========================================================
-   TWO OF US — A LITTLE QUESTION BOOK
-   Complete browser application
-
-   Supabase requirements:
-   - Supabase Auth registration Edge Function: "register"
-   - profiles, rooms, room_members, rounds, answers,
-     replay_requests tables
-   - RPC functions:
-       create_room()
-       join_room(p_code text)
-       advance_question(p_room_id uuid)
-       request_replay(p_room_id uuid)
-   - Correct RLS policies and Realtime publication enabled
-
-   Never put a Supabase service-role key in this file.
-========================================================= */
+/* =========================================
+   TWO OF US — TEMPORARY LONG-DISTANCE GAME
+   No database tables. No permanent answers.
+   Supabase Realtime + Anonymous Auth.
+========================================= */
 
 const SUPABASE_URL = "https://qfbtduuorxiwawawstdw.supabase.co";
-const SUPABASE_KEY = "PASTE_YOUR_DEFAULT_PUBLISHABLE_KEY_HERE";
+const SUPABASE_KEY = "sb_publishable_H50cKJkig7yKxPy3Tb8L2g_IynrjV7l";
 
-if (!window.supabase) {
-  alert("Supabase did not load. Check your internet connection.");
-  throw new Error("Supabase library missing.");
-}
-
-if (
-  !SUPABASE_KEY ||
-  SUPABASE_KEY === "PASTE_YOUR_DEFAULT_PUBLISHABLE_KEY_HERE"
-) {
-  console.error("Add your Supabase Publishable Key to app.js.");
-}
-
-const db = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
-
-/* =========================================================
-   QUESTIONS — 10 STAGES, 10 QUESTIONS EACH
-========================================================= */
-
-const STAGES = [
-  {
-    title: "Funny Beginnings",
-    description: "Let's start with laughter and silly questions.",
-    questions: [
-      "What was your first impression of me?",
-      "What is the funniest thing you have ever done?",
-      "If we were cartoon characters, who would we be?",
-      "What silly nickname would you give me?",
-      "What always makes you laugh?",
-      "If we opened a comedy show, what would we call it?",
-      "What is one funny habit you have?",
-      "If you could switch lives with me for a day, what would you do?",
-      "What is the most ridiculous thing you believe as a child?",
-      "Which one of us would laugh first during a serious moment?"
-    ]
-  },
-  {
-    title: "Getting to Know You",
-    description: "A little more about the person behind the screen.",
-    questions: [
-      "What is something people often misunderstand about you?",
-      "What makes you feel appreciated?",
-      "What is your favourite childhood memory?",
-      "What is one thing you are proud of?",
-      "What is your perfect relaxing day?",
-      "What is something you would love to learn?",
-      "What kind of music makes you happy?",
-      "What is one thing you cannot live without?",
-      "What is your biggest personal dream?",
-      "What is something you wish people asked you more often?"
-    ]
-  },
-  {
-    title: "Romantic Corner",
-    description: "Sweet questions for two people who care about each other.",
-    questions: [
-      "What is one little thing that makes you feel loved?",
-      "What is your favourite way to spend time together?",
-      "What makes a relationship feel special to you?",
-      "What is the sweetest compliment someone can give you?",
-      "What song reminds you of someone special?",
-      "What does a thoughtful surprise look like to you?",
-      "What is one sweet memory you would like to create?",
-      "What makes you feel comfortable opening up?",
-      "What does being supportive mean to you?",
-      "What is one thing you appreciate about our connection?"
-    ]
-  },
-  {
-    title: "Silly & Unfiltered",
-    description: "No serious faces allowed!",
-    questions: [
-      "If you could eat only one meal for a week, what would it be?",
-      "Would you rather talk to animals or understand every language?",
-      "What is your most unusual talent?",
-      "If you became famous tomorrow, what would it be for?",
-      "What fictional world would you visit?",
-      "What is the strangest food combination you enjoy?",
-      "Would you rather always sing or always dance when walking?",
-      "What would your personal warning label say?",
-      "If you had a robot assistant, what would you name it?",
-      "What is something you would never do on a dare?"
-    ]
-  },
-  {
-    title: "Our Memories",
-    description: "Let's remember the moments that matter.",
-    questions: [
-      "What conversation of ours do you remember most?",
-      "What moment made you smile recently?",
-      "What is one moment you wish you could relive?",
-      "What is a small detail about us that you remember?",
-      "What has been your favourite conversation topic?",
-      "What is something new you have learned about me?",
-      "What is one moment that surprised you?",
-      "Which memory would you put in a scrapbook?",
-      "What is one thing we should do together someday?",
-      "What memory would you give a special title?"
-    ]
-  },
-  {
-    title: "This or That",
-    description: "Quick choices. Explain your answers!",
-    questions: [
-      "Sunrise or sunset?",
-      "Beach or mountains?",
-      "Movies or music?",
-      "Phone calls or messages?",
-      "Adventure or peaceful evenings?",
-      "Sweet snacks or salty snacks?",
-      "A planned day or a spontaneous day?",
-      "City life or countryside?",
-      "Books or documentaries?",
-      "A handwritten letter or a thoughtful gift?"
-    ]
-  },
-  {
-    title: "Deep Conversations",
-    description: "Take your time. There are no wrong answers.",
-    questions: [
-      "What does trust mean to you?",
-      "What helps you through a difficult day?",
-      "What is one lesson life has taught you?",
-      "What makes you feel understood?",
-      "What is something you are still learning about yourself?",
-      "How do you prefer to solve disagreements?",
-      "What does genuine friendship mean to you?",
-      "What is one value you never want to lose?",
-      "What makes you feel safe sharing your thoughts?",
-      "What kind of person do you hope to become?"
-    ]
-  },
-  {
-    title: "Dreaming Together",
-    description: "Imagine the possibilities.",
-    questions: [
-      "What country would you love to visit?",
-      "What is one skill you want to master?",
-      "What would your dream home feel like?",
-      "What kind of adventure would you enjoy?",
-      "What is one goal you want to achieve?",
-      "If you could start a project together, what would it be?",
-      "What would your perfect holiday look like?",
-      "What is one new experience you want to try?",
-      "What would you like your future self to thank you for?",
-      "What is one dream you would love to celebrate achieving?"
-    ]
-  },
-  {
-    title: "Love & Understanding",
-    description: "Thoughtful questions about care and communication.",
-    questions: [
-      "How do you prefer someone to show they care?",
-      "What makes an apology meaningful to you?",
-      "How can two people support each other's goals?",
-      "What does good communication look like?",
-      "What helps you feel listened to?",
-      "How should people handle misunderstandings?",
-      "What is one boundary you think everyone should respect?",
-      "What does patience mean in a relationship?",
-      "What is one quality you admire in others?",
-      "What helps people grow together while remaining themselves?"
-    ]
-  },
-  {
-    title: "The Final Chapter",
-    description: "One last set of questions before the big review.",
-    questions: [
-      "What is your favourite thing about this game?",
-      "Which stage did you enjoy most?",
-      "Which answer surprised you?",
-      "What is something you learned about the other person?",
-      "What question would you add to this game?",
-      "What is one thing you want us to remember?",
-      "What should our next little adventure be?",
-      "What is one thing you appreciate about yourself?",
-      "What would you name this chapter?",
-      "In one sentence, describe what this experience meant to you."
-    ]
-  }
-];
-
-/* =========================================================
-   APP STATE
-========================================================= */
-
-let currentUser = null;
-let currentProfile = null;
-let currentRoom = null;
-let currentRound = null;
-let roomMembers = [];
-let myAnswer = null;
-let partnerAnswer = null;
-let currentStage = 0;
-let currentQuestion = 0;
-let authMode = "register";
-let realtimeChannel = null;
-let refreshBusy = false;
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const $ = (id) => document.getElementById(id);
 
-function showScreen(name) {
-  document.querySelectorAll(".screen").forEach((screen) => {
-    screen.classList.remove("active");
-  });
+const screens = [
+  "welcomeScreen",
+  "homeScreen",
+  "roomScreen",
+  "gameScreen",
+  "resultsScreen"
+];
 
-  const target = $(name);
-  if (target) target.classList.add("active");
+let user = null;
+let myName = "Comfort";
+let isHost = false;
+let roomCode = "";
+let roomChannel = null;
+let currentQuestion = 0;
+let answers = {};
+let history = [];
+let players = [];
 
-  window.scrollTo({ top: 0, behavior: "smooth" });
+const stageTitles = [
+  "Getting to know us",
+  "Little things about us",
+  "Memories and moments",
+  "Our personalities",
+  "Love and connection",
+  "Dreams and plans",
+  "The funny side of us",
+  "Our future together",
+  "Heart-to-heart",
+  "Just the two of us"
+];
+
+const questions = [
+  // STAGE 1
+  "What was your first impression of me?",
+  "What is one thing you noticed about me first?",
+  "What makes you smile when you think of me?",
+  "What is your favourite thing about our conversations?",
+  "What three words describe me?",
+  "What do you think we have in common?",
+  "What is something new you have learned about me?",
+  "What is one question you have always wanted to ask me?",
+  "What makes our connection different?",
+  "What is one thing you would like us to do together?",
+
+  // STAGE 2
+  "What little thing can instantly improve your day?",
+  "What kind of messages make you happiest?",
+  "What is your favourite time of day to talk?",
+  "What song reminds you of a happy moment?",
+  "What is something that always makes you laugh?",
+  "What is your favourite way to relax?",
+  "Would you rather have a long call or lots of little messages?",
+  "What food would you love us to try together?",
+  "What is one small thing you wish I knew about you?",
+  "What makes an ordinary day special?",
+
+  // STAGE 3
+  "What conversation between us do you remember most?",
+  "What is one moment that made you feel understood?",
+  "What is the funniest thing we have talked about?",
+  "What is something I said that stayed in your mind?",
+  "Which conversation would you happily repeat?",
+  "What is a memory that always makes you smile?",
+  "What was a moment when you felt close to me?",
+  "What is something we should make a tradition?",
+  "What is one thing you hope we never forget?",
+  "If we made a scrapbook, what would be on its first page?",
+
+  // STAGE 4
+  "Are you more of a planner or a spontaneous person?",
+  "What do you do when you need encouragement?",
+  "What is something you are secretly proud of?",
+  "What is one habit you would like to improve?",
+  "Do you prefer listening or talking when upset?",
+  "What kind of humour makes you laugh?",
+  "What is something people often misunderstand about you?",
+  "What helps you feel appreciated?",
+  "What is one thing you find difficult to explain?",
+  "When do you feel most like yourself?",
+
+  // STAGE 5
+  "What does a meaningful connection mean to you?",
+  "What makes you feel appreciated?",
+  "How do you prefer to solve misunderstandings?",
+  "What does being a good listener mean to you?",
+  "What is one way we can make distance easier?",
+  "What makes you feel comfortable opening up?",
+  "What is something you value in a friendship or relationship?",
+  "How can two people support each other's goals?",
+  "What does trust mean to you?",
+  "What is one thing we can always be honest about?",
+
+  // STAGE 6
+  "What is one place you dream of visiting?",
+  "What is a goal you really want to achieve?",
+  "What would your ideal peaceful day look like?",
+  "What skill would you love to learn?",
+  "What kind of home would make you happy?",
+  "What is something you want to experience together?",
+  "What are you looking forward to this year?",
+  "If you could learn anything instantly, what would it be?",
+  "What is one dream you rarely talk about?",
+  "What does a successful future look like to you?",
+
+  // STAGE 7
+  "If we were characters in a comedy, who would be funnier?",
+  "What silly nickname would you give me?",
+  "Who would take longer to get ready for a date?",
+  "If we opened a restaurant, what would we call it?",
+  "What is the funniest thing you have ever done?",
+  "If we swapped phones for a day, what would surprise me?",
+  "Who is more likely to forget something important?",
+  "What would our imaginary pet be called?",
+  "If we had a theme song, what would its mood be?",
+  "Describe our friendship or connection as a movie title.",
+
+  // STAGE 8
+  "What would you like our first day together to look like?",
+  "What activity should we try when we meet?",
+  "Would you prefer a quiet date or an adventurous one?",
+  "What place would you love to show me?",
+  "What would our perfect weekend look like?",
+  "What is a new tradition we could start?",
+  "What would you like us to celebrate together?",
+  "What is one adventure you would remember forever?",
+  "What would make our first photograph together special?",
+  "What are you most excited about experiencing together?",
+
+  // STAGE 9
+  "What is something you appreciate but rarely say?",
+  "What makes you feel safe sharing your thoughts?",
+  "What is one thing you hope I understand about you?",
+  "How can I encourage you when things get difficult?",
+  "What is something you have learned from knowing me?",
+  "What does patience mean to you?",
+  "What is one thing you want us to keep improving?",
+  "When do you feel most listened to?",
+  "What is one promise we can make about communicating?",
+  "What would you like to tell me right now?",
+
+  // STAGE 10
+  "What is your favourite thing about us?",
+  "What is one word you would use for our journey?",
+  "What do you hope we are laughing about in five years?",
+  "What is something you want to thank me for?",
+  "What should we never stop doing?",
+  "What is one thing you want to experience with me?",
+  "What is your favourite part of this little game?",
+  "What did you learn about me today?",
+  "What is one question you want to ask me again someday?",
+  "If you could leave me one message to remember, what would it be?"
+];
+
+function showScreen(screenId) {
+  screens.forEach(id => $(id).classList.add("hidden"));
+  $(screenId).classList.remove("hidden");
 }
 
 function setMessage(id, message) {
-  const element = $(id);
-  if (element) element.textContent = message || "";
+  $(id).textContent = message;
 }
 
-function setButton(id, text, disabled = false) {
-  const button = $(id);
-  if (!button) return;
-  button.textContent = text;
-  button.disabled = disabled;
+function makeRoomCode() {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
-function escapeHTML(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#039;"
-  })[char]);
-}
+async function ensureGuest() {
+  const { data: sessionData, error: sessionError } =
+    await db.auth.getSession();
 
-function usernameEmail(username) {
-  return `${username.toLowerCase()}@twoofus.invalid`;
-}
+  if (sessionError) throw sessionError;
 
-function getPartner() {
-  return roomMembers.find(
-    (member) => member.user_id !== currentUser?.id
-  );
-}
-
-function getMyMember() {
-  return roomMembers.find(
-    (member) => member.user_id === currentUser?.id
-  );
-}
-
-/* =========================================================
-   AUTHENTICATION
-========================================================= */
-
-function setAuthMode(mode) {
-  authMode = mode;
-
-  if ($("registerTab")) {
-    $("registerTab").classList.toggle("active", mode === "register");
-  }
-
-  if ($("loginTab")) {
-    $("loginTab").classList.toggle("active", mode === "login");
-  }
-
-  setButton(
-    "authSubmit",
-    mode === "register" ? "Create Account" : "Log In"
-  );
-
-  setMessage("authMessage", "");
-}
-
-$("registerTab")?.addEventListener("click", () => {
-  setAuthMode("register");
-});
-
-$("loginTab")?.addEventListener("click", () => {
-  setAuthMode("login");
-});
-
-$("authForm")?.addEventListener("submit", async (event) => {
-  event.preventDefault();
-
-  const username = $("username")?.value.trim();
-  const pin = $("pin")?.value.trim();
-
-  if (!username || !pin) {
-    setMessage("authMessage", "Enter your username and PIN.");
+  if (sessionData.session) {
+    user = sessionData.session.user;
     return;
   }
 
-  if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
-    setMessage(
-      "authMessage",
-      "Use 3–20 letters, numbers or underscores for your username."
-    );
-    return;
+  const { data, error } = await db.auth.signInAnonymously();
+
+  if (error) throw error;
+
+  user = data.user;
+}
+
+function installPlayerChoice() {
+  const home = $("homeScreen");
+  if ($("playerChoice")) return;
+
+  const wrapper = document.createElement("div");
+  wrapper.id = "playerChoice";
+  wrapper.style.width = "100%";
+  wrapper.style.maxWidth = "340px";
+  wrapper.style.textAlign = "left";
+
+  const label = document.createElement("label");
+  label.textContent = "Who is playing?";
+  label.style.display = "block";
+  label.style.marginBottom = "8px";
+  label.style.fontWeight = "600";
+
+  const select = document.createElement("select");
+  select.id = "playerNameSelect";
+  select.style.width = "100%";
+  select.style.padding = "15px";
+  select.style.borderRadius = "13px";
+  select.style.border = "1px solid #e7d9d0";
+  select.style.background = "white";
+  select.style.color = "#594b43";
+
+  select.innerHTML = `
+    <option value="Comfort">Comfort</option>
+    <option value="Felix">Felix</option>
+  `;
+
+  select.addEventListener("change", () => {
+    myName = select.value;
+  });
+
+  wrapper.append(label, select);
+  home.insertBefore(wrapper, $("createRoomButton"));
+}
+
+function updatePlayers() {
+  if (!roomChannel) return;
+
+  const state = roomChannel.presenceState();
+  players = Object.values(state).flat();
+
+  const list = $("playersList");
+  list.replaceChildren();
+
+  ["Comfort", "Felix"].forEach(name => {
+    const line = document.createElement("p");
+    const present = players.some(player => player.name === name);
+    line.textContent = `${present ? "●" : "○"} ${name} ${
+      present ? "is here" : "hasn't joined yet"
+    }`;
+    list.appendChild(line);
+  });
+
+  $("startGameButton").disabled =
+    !isHost || players.length !== 2;
+
+  if (players.length >= 2) {
+    setMessage("roomStatus", "Both players are here! ♡");
+  } else {
+    setMessage("roomStatus", "Waiting for the other player...");
+  }
+}
+
+async function connectToRoom(code, host) {
+  await ensureGuest();
+
+  if (roomChannel) {
+    await db.removeChannel(roomChannel);
+    roomChannel = null;
   }
 
-  if (!/^\d{6,12}$/.test(pin)) {
-    setMessage("authMessage", "Your PIN must contain 6–12 digits.");
-    return;
-  }
+  roomCode = code.toUpperCase();
+  isHost = host;
 
-  setButton("authSubmit", "Please wait...", true);
-  setMessage("authMessage", "");
-
-  try {
-    const email = usernameEmail(username);
-
-    if (authMode === "register") {
-      const { error: registerError } = await db.functions.invoke(
-        "register",
-        {
-          body: { username, pin }
-        }
-      );
-
-      if (registerError) throw registerError;
+  roomChannel = db.channel(`two-of-us-${roomCode}`, {
+    config: {
+      broadcast: { self: false },
+      presence: { key: user.id }
     }
+  });
 
-    const { data, error } = await db.auth.signInWithPassword({
-      email,
-      password: pin
+  roomChannel
+    .on("presence", { event: "sync" }, updatePlayers)
+
+    .on("broadcast", { event: "game-start" }, () => {
+      history = [];
+      setCurrentQuestion(0);
+      showScreen("gameScreen");
+    })
+
+    .on("broadcast", { event: "question-change" }, ({ payload }) => {
+      setCurrentQuestion(payload.index);
+    })
+
+    .on("broadcast", { event: "answer" }, ({ payload }) => {
+      receiveAnswer(payload);
+    })
+
+    .on("broadcast", { event: "game-finished" }, () => {
+      showResults();
+    })
+
+    .subscribe(async status => {
+      if (status === "SUBSCRIBED") {
+        await roomChannel.track({
+          name: myName,
+          userId: user.id
+        });
+
+        $("roomCodeDisplay").textContent = roomCode;
+        $("startGameButton").disabled = !isHost;
+        showScreen("roomScreen");
+        updatePlayers();
+      }
+
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        setMessage("roomMessage", "Connection problem. Please try again.");
+      }
     });
-
-    if (error) throw error;
-
-    currentUser = data.user;
-    await loadProfile(username);
-
-    await openDashboard();
-  } catch (error) {
-    console.error(error);
-
-    setMessage(
-      "authMessage",
-      error.message || "Something went wrong. Please try again."
-    );
-  } finally {
-    setButton(
-      "authSubmit",
-      authMode === "register" ? "Create Account" : "Log In"
-    );
-  }
-});
-
-async function loadProfile(usernameFallback) {
-  const { data, error } = await db
-    .from("profiles")
-    .select("*")
-    .eq("id", currentUser.id)
-    .single();
-
-  if (error) {
-    throw new Error(
-      "Your profile could not be loaded. Check the profiles table and its access policies."
-    );
-  }
-
-  currentProfile = data;
-  currentProfile.username =
-    data.username || usernameFallback || "Player";
 }
-
-/* =========================================================
-   DASHBOARD
-========================================================= */
-
-async function openDashboard() {
-  if ($("playerName")) {
-    $("playerName").textContent =
-      currentProfile?.username || "Player";
-  }
-
-  await findMyRoom();
-  showScreen("dashboard");
-}
-
-async function findMyRoom() {
-  const { data: membership, error } = await db
-    .from("room_members")
-    .select("room_id")
-    .eq("user_id", currentUser.id)
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.error(error);
-    return;
-  }
-
-  if (!membership) {
-    currentRoom = null;
-    setMessage("roomMessage", "Create a room or join a room.");
-    return;
-  }
-
-  await loadRoom(membership.room_id);
-}
-
-$("createRoom")?.addEventListener("click", createRoom);
-$("joinRoom")?.addEventListener("click", joinRoom);
-$("logout")?.addEventListener("click", logout);
 
 async function createRoom() {
-  setMessage("roomMessage", "Creating your private room...");
-
   try {
-    const { data, error } = await db.rpc("create_room");
+    myName = $("playerNameSelect").value;
+    const code = makeRoomCode();
 
-    if (error) throw error;
-
-    const room = Array.isArray(data) ? data[0] : data;
-    const roomId = room?.room_id || room?.id;
-
-    if (!roomId) {
-      throw new Error("The create_room function did not return a room ID.");
-    }
-
-    await loadRoom(roomId);
+    setMessage("homeMessage", "Creating your room...");
+    await connectToRoom(code, true);
   } catch (error) {
-    console.error(error);
-    setMessage("roomMessage", error.message);
+    setMessage("homeMessage", error.message || "Couldn't create room.");
   }
 }
 
 async function joinRoom() {
-  const code = prompt("Enter the room invitation code:");
-
-  if (!code) return;
-
-  setMessage("roomMessage", "Joining room...");
-
   try {
-    const { data, error } = await db.rpc("join_room", {
-      p_code: code.trim().toUpperCase()
-    });
+    myName = $("playerNameSelect").value;
 
-    if (error) throw error;
+    const code = $("roomCodeInput").value.trim().toUpperCase();
 
-    const result = Array.isArray(data) ? data[0] : data;
-    const roomId = result?.room_id || result?.id;
-
-    if (!roomId) {
-      throw new Error("The join_room function did not return a room ID.");
-    }
-
-    await loadRoom(roomId);
-  } catch (error) {
-    console.error(error);
-    setMessage("roomMessage", error.message);
-  }
-}
-
-/* =========================================================
-   ROOM LOADING AND MEMBERS
-========================================================= */
-
-async function loadRoom(roomId) {
-  const { data: room, error: roomError } = await db
-    .from("rooms")
-    .select("*")
-    .eq("id", roomId)
-    .single();
-
-  if (roomError) throw roomError;
-
-  currentRoom = room;
-
-  const { data: members, error: memberError } = await db
-    .from("room_members")
-    .select("user_id, profiles(username)")
-    .eq("room_id", roomId);
-
-  if (memberError) throw memberError;
-
-  roomMembers = members || [];
-
-  if (roomMembers.length > 2) {
-    throw new Error("This room has more than two members. Please contact support.");
-  }
-
-  if (!roomMembers.some((member) => member.user_id === currentUser.id)) {
-    throw new Error("You are not a member of this room.");
-  }
-
-  if ($("inviteCode")) {
-    $("inviteCode").textContent = room.code || "Loading...";
-  }
-
-  await refreshRound();
-
-  subscribeToRoom(roomId);
-
-  if (roomMembers.length < 2) {
-    updateWaitingScreen();
-    showScreen("waiting");
-  } else {
-    await openGameFromRoom();
-  }
-}
-
-function updateWaitingScreen() {
-  const first = roomMembers[0];
-  const second = roomMembers[1];
-
-  if ($("roomCode")) {
-    $("roomCode").textContent = currentRoom?.code || "------";
-  }
-
-  if ($("firstPlayer")) {
-    $("firstPlayer").textContent =
-      first?.profiles?.username || "Waiting...";
-  }
-
-  if ($("secondPlayer")) {
-    $("secondPlayer").textContent =
-      second?.profiles?.username || "Waiting for player two...";
-  }
-
-  setMessage(
-    "waitingMessage",
-    roomMembers.length === 2
-      ? "Both players are here. Let the game begin!"
-      : "Share your invitation code with one person."
-  );
-}
-
-$("copyRoomCode")?.addEventListener("click", async () => {
-  const code = currentRoom?.code;
-
-  if (!code) return;
-
-  try {
-    await navigator.clipboard.writeText(code);
-    setMessage("waitingMessage", "Invitation code copied!");
-  } catch {
-    setMessage("waitingMessage", `Your invitation code is ${code}`);
-  }
-});
-
-/* =========================================================
-   ROUND AND QUESTION STATE
-========================================================= */
-
-async function refreshRound() {
-  if (!currentRoom) return;
-
-  const { data, error } = await db
-    .from("rounds")
-    .select("*")
-    .eq("room_id", currentRoom.id)
-    .eq("status", "active")
-    .order("round_number", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) throw error;
-
-  currentRound = data;
-
-  if (currentRound) {
-    currentStage = Number(currentRound.current_stage || 0);
-    currentQuestion = Number(currentRound.current_question || 0);
-  }
-}
-
-async function openGameFromRoom() {
-  if (roomMembers.length < 2) {
-    updateWaitingScreen();
-    showScreen("waiting");
-    return;
-  }
-
-  if (!currentRound) {
-    showStageIntro();
-    return;
-  }
-
-  if (currentStage >= STAGES.length) {
-    await showFinishedScreen();
-    return;
-  }
-
-  await loadQuestion();
-}
-
-function showStageIntro() {
-  const stage = STAGES[currentStage];
-
-  if (!stage) {
-    showFinishedScreen();
-    return;
-  }
-
-  if ($("stageNumber")) {
-    $("stageNumber").textContent = `Stage ${currentStage + 1} of 10`;
-  }
-
-  if ($("stageTitle")) {
-    $("stageTitle").textContent = stage.title;
-  }
-
-  if ($("stageDescription")) {
-    $("stageDescription").textContent = stage.description;
-  }
-
-  showScreen("stageIntro");
-}
-
-$("startStage")?.addEventListener("click", async () => {
-  if (!currentRound) {
-    setMessage("stageDescription", "The game round has not been created yet.");
-    return;
-  }
-
-  await loadQuestion();
-});
-
-/* =========================================================
-   ANSWERS
-========================================================= */
-
-async function loadQuestion() {
-  if (!currentRound || roomMembers.length !== 2) return;
-
-  if (currentStage >= STAGES.length) {
-    await showFinishedScreen();
-    return;
-  }
-
-  if (currentQuestion >= 10) {
-    showStageComplete();
-    return;
-  }
-
-  const stage = STAGES[currentStage];
-  const question = stage.questions[currentQuestion];
-
-  if ($("stageLabel")) {
-    $("stageLabel").textContent =
-      `Stage ${currentStage + 1}: ${stage.title}`;
-  }
-
-  if ($("questionCount")) {
-    $("questionCount").textContent =
-      `Question ${currentQuestion + 1} of 10`;
-  }
-
-  if ($("progressBar")) {
-    $("progressBar").style.width =
-      `${((currentQuestion + 1) / 10) * 100}%`;
-  }
-
-  if ($("gameCategory")) {
-    $("gameCategory").textContent = stage.title;
-  }
-
-  if ($("questionText")) {
-    $("questionText").textContent = question;
-  }
-
-  if ($("myName")) {
-    $("myName").textContent =
-      currentProfile?.username || "You";
-  }
-
-  if ($("partnerName")) {
-    $("partnerName").textContent =
-      getPartner()?.profiles?.username || "Partner";
-  }
-
-  if ($("myAnswer")) {
-    $("myAnswer").value = "";
-    $("myAnswer").disabled = false;
-  }
-
-  myAnswer = null;
-  partnerAnswer = null;
-
-  await loadExistingAnswers();
-  showScreen("game");
-}
-
-async function loadExistingAnswers() {
-  if (!currentRound) return;
-
-  const questionNumber = currentStage * 10 + currentQuestion;
-
-  const { data, error } = await db
-    .from("answers")
-    .select("user_id, answer")
-    .eq("round_id", currentRound.id)
-    .eq("question_number", questionNumber);
-
-  if (error) {
-    console.error(error);
-    return;
-  }
-
-  const mine = data.find(
-    (answer) => answer.user_id === currentUser.id
-  );
-
-  const partner = data.find(
-    (answer) => answer.user_id !== currentUser.id
-  );
-
-  if (mine) {
-    myAnswer = mine.answer;
-    if ($("myAnswer")) {
-      $("myAnswer").value = mine.answer;
-      $("myAnswer").disabled = true;
-    }
-  }
-
-  if (partner) {
-    partnerAnswer = partner.answer;
-  }
-
-  updateAnswerStatus();
-}
-
-async function submitAnswer() {
-  const answer = $("myAnswer")?.value.trim();
-
-  if (!answer) {
-    setMessage("gameMessage", "Write your answer first.");
-    return;
-  }
-
-  if (!currentRound) return;
-
-  const questionNumber = currentStage * 10 + currentQuestion;
-
-  setMessage("gameMessage", "Saving your answer...");
-
-  const { error } = await db
-    .from("answers")
-    .upsert(
-      {
-        round_id: currentRound.id,
-        room_id: currentRoom.id,
-        question_number: questionNumber,
-        user_id: currentUser.id,
-        answer
-      },
-      {
-        onConflict: "round_id,question_number,user_id"
-      }
-    );
-
-  if (error) {
-    console.error(error);
-    setMessage("gameMessage", error.message);
-    return;
-  }
-
-  myAnswer = answer;
-
-  if ($("myAnswer")) {
-    $("myAnswer").disabled = true;
-  }
-
-  setMessage("gameMessage", "Your answer has been saved!");
-  await loadExistingAnswers();
-  updateAnswerStatus();
-}
-
-function updateAnswerStatus() {
-  const mineDone = Boolean(myAnswer);
-  const partnerDone = Boolean(partnerAnswer);
-
-  if ($("myStatus")) {
-    $("myStatus").textContent =
-      mineDone ? "Your answer is saved ✓" : "Your answer is pending";
-  }
-
-  if ($("partnerStatus")) {
-    $("partnerStatus").textContent =
-      partnerDone ? "Partner has answered ✓" : "Waiting for partner...";
-  }
-
-  if ($("partnerAnswer")) {
-    $("partnerAnswer").textContent =
-      partnerDone ? partnerAnswer : "Waiting for their answer...";
-  }
-
-  const next = $("nextButton");
-  if (next) {
-    next.disabled = !(mineDone && partnerDone);
-  }
-}
-
-if ($("myAnswer")) {
-  const submit = document.createElement("button");
-  submit.type = "button";
-  submit.id = "submitAnswerButton";
-  submit.textContent = "Save My Answer";
-  submit.addEventListener("click", submitAnswer);
-  $("myAnswer").insertAdjacentElement("afterend", submit);
-}
-
-/* =========================================================
-   NEXT QUESTION — SERVER VALIDATES BOTH ANSWERS
-========================================================= */
-
-$("nextButton")?.addEventListener("click", async () => {
-  if (!myAnswer || !partnerAnswer) {
-    setMessage("gameMessage", "Both players must answer first.");
-    return;
-  }
-
-  setButton("nextButton", "Moving...", true);
-
-  try {
-    const { error } = await db.rpc("advance_question", {
-      p_room_id: currentRoom.id
-    });
-
-    if (error) throw error;
-
-    await refreshRound();
-
-    if (currentQuestion >= 10) {
-      showStageComplete();
-    } else {
-      await loadQuestion();
-    }
-  } catch (error) {
-    console.error(error);
-    setMessage("gameMessage", error.message);
-  } finally {
-    setButton("nextButton", "Next Question", false);
-    updateAnswerStatus();
-  }
-});
-
-/* =========================================================
-   STAGE COMPLETION
-========================================================= */
-
-function showStageComplete() {
-  const stage = STAGES[currentStage];
-
-  if ($("stageCompleteText")) {
-    $("stageCompleteText").textContent =
-      `You completed ${stage.title}!`;
-  }
-
-  showScreen("stageComplete");
-}
-
-$("nextStage")?.addEventListener("click", async () => {
-  await refreshRound();
-
-  if (currentStage >= STAGES.length) {
-    await showFinishedScreen();
-  } else {
-    showStageIntro();
-  }
-});
-
-/* =========================================================
-   FINAL SCREEN AND ANSWER REVIEW
-========================================================= */
-
-async function showFinishedScreen() {
-  setMessage(
-    "replayMessage",
-    "You completed all ten stages. You can review your answers or request another round together."
-  );
-
-  showScreen("finished");
-}
-
-$("reviewAnswers")?.addEventListener("click", showReview);
-
-async function showReview() {
-  if (!currentRound) return;
-
-  const { data, error } = await db
-    .from("answers")
-    .select("question_number, user_id, answer")
-    .eq("round_id", currentRound.id)
-    .order("question_number");
-
-  if (error) {
-    setMessage("reviewContent", error.message);
-    return;
-  }
-
-  const grouped = {};
-
-  (data || []).forEach((answer) => {
-    const number = answer.question_number;
-    if (!grouped[number]) grouped[number] = {};
-    grouped[number][answer.user_id] = answer.answer;
-  });
-
-  let html = "";
-
-  STAGES.forEach((stage, stageIndex) => {
-    html += `<h3>${escapeHTML(stage.title)}</h3>`;
-
-    stage.questions.forEach((question, questionIndex) => {
-      const number = stageIndex * 10 + questionIndex;
-      const item = grouped[number] || {};
-
-      html += `
-        <article class="review-question">
-          <strong>${escapeHTML(question)}</strong>
-          <p><b>${escapeHTML(currentProfile.username)}:</b>
-          ${escapeHTML(item[currentUser.id] || "No answer")}</p>
-          <p><b>${escapeHTML(getPartner()?.profiles?.username || "Partner")}:</b>
-          ${escapeHTML(
-            item[getPartner()?.user_id] || "No answer"
-          )}</p>
-        </article>
-      `;
-    });
-  });
-
-  if ($("reviewContent")) {
-    $("reviewContent").innerHTML = html;
-  }
-
-  showScreen("review");
-}
-
-/* =========================================================
-   REPLAY — BOTH PLAYERS MUST REQUEST
-========================================================= */
-
-$("requestReplay")?.addEventListener("click", async () => {
-  if (!currentRoom) return;
-
-  setButton("requestReplay", "Sending request...", true);
-
-  try {
-    const { data, error } = await db.rpc("request_replay", {
-      p_room_id: currentRoom.id
-    });
-
-    if (error) throw error;
-
-    const result = Array.isArray(data) ? data[0] : data;
-
-    if (result?.started) {
-      setMessage("replayMessage", "A new round has started!");
-      await refreshRound();
-      await loadQuestion();
-    } else {
-      setMessage(
-        "replayMessage",
-        "Your replay request is saved. Waiting for the other player to agree."
-      );
-    }
-  } catch (error) {
-    console.error(error);
-    setMessage("replayMessage", error.message);
-  } finally {
-    setButton("requestReplay", "Request Replay", false);
-  }
-});
-
-/* =========================================================
-   REALTIME — KEEP BOTH SCREENS UPDATED
-========================================================= */
-
-function subscribeToRoom(roomId) {
-  if (realtimeChannel) {
-    db.removeChannel(realtimeChannel);
-  }
-
-  realtimeChannel = db
-    .channel(`two-of-us-room-${roomId}`)
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "answers",
-        filter: `room_id=eq.${roomId}`
-      },
-      async () => {
-        if (refreshBusy) return;
-        refreshBusy = true;
-
-        try {
-          await loadExistingAnswers();
-          updateAnswerStatus();
-        } finally {
-          refreshBusy = false;
-        }
-      }
-    )
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "room_members",
-        filter: `room_id=eq.${roomId}`
-      },
-      async () => {
-        await loadRoom(roomId);
-      }
-    )
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "rounds",
-        filter: `room_id=eq.${roomId}`
-      },
-      async () => {
-        await refreshRound();
-        await openGameFromRoom();
-      }
-    )
-    .subscribe();
-}
-
-/* =========================================================
-   LOGOUT
-========================================================= */
-
-async function logout() {
-  if (realtimeChannel) {
-    await db.removeChannel(realtimeChannel);
-    realtimeChannel = null;
-  }
-
-  await db.auth.signOut();
-
-  currentUser = null;
-  currentProfile = null;
-  currentRoom = null;
-  currentRound = null;
-  roomMembers = [];
-
-  showScreen("welcome");
-}
-
-/* =========================================================
-   SESSION RESTORE
-========================================================= */
-
-async function restoreSession() {
-  try {
-    const { data, error } = await db.auth.getSession();
-
-    if (error) throw error;
-
-    const session = data.session;
-
-    if (!session) {
-      showScreen("welcome");
+    if (!/^[A-Z0-9]{6}$/.test(code)) {
+      setMessage("homeMessage", "Please enter a valid 6-character code.");
       return;
     }
 
-    currentUser = session.user;
-
-    await loadProfile();
-    await openDashboard();
+    setMessage("homeMessage", "Joining your room...");
+    await connectToRoom(code, false);
   } catch (error) {
-    console.error("Session restore:", error);
-    showScreen("welcome");
+    setMessage("homeMessage", error.message || "Couldn't join room.");
   }
 }
 
-/* =========================================================
-   INITIALISE
-========================================================= */
+async function broadcast(event, payload) {
+  if (!roomChannel) return;
 
-document.addEventListener("DOMContentLoaded", () => {
-  restoreSession();
+  const result = await roomChannel.send({
+    type: "broadcast",
+    event,
+    payload
+  });
+
+  if (result !== "ok") {
+    throw new Error("Message could not be sent. Please try again.");
+  }
+}
+
+async function startGame() {
+  if (!isHost || players.length !== 2) return;
+
+  history = [];
+  await broadcast("game-start", {});
+  setCurrentQuestion(0);
+  showScreen("gameScreen");
+}
+
+function setCurrentQuestion(index) {
+  currentQuestion = index;
+  answers = {};
+
+  if (index >= questions.length) {
+    showResults();
+    return;
+  }
+
+  const stage = Math.floor(index / 10);
+
+  $("stageLabel").textContent = `STAGE ${stage + 1}`;
+  $("stageTitle").textContent = stageTitles[stage];
+  $("questionCounter").textContent =
+    `Question ${index + 1} of ${questions.length}`;
+  $("questionText").textContent = questions[index];
+  $("progressBar").style.width =
+    `${((index + 1) / questions.length) * 100}%`;
+
+  $("myAnswer").value = "";
+  $("myAnswer").disabled = false;
+  $("submitAnswerButton").disabled = false;
+
+  $("answersDisplay").replaceChildren();
+  $("nextQuestionButton").classList.add("hidden");
+
+  setMessage("answerStatus", "");
+  setMessage("partnerStatus", "Waiting for both answers...");
+}
+
+function addAnswerCard(name, answer) {
+  const card = document.createElement("div");
+  card.className = "answer-card";
+
+  const heading = document.createElement("h3");
+  heading.textContent = name;
+
+  const paragraph = document.createElement("p");
+  paragraph.textContent = answer;
+
+  card.append(heading, paragraph);
+  $("answersDisplay").appendChild(card);
+}
+
+async function submitAnswer() {
+  const answer = $("myAnswer").value.trim();
+
+  if (!answer) {
+    setMessage("answerStatus", "Write your answer first ♡");
+    return;
+  }
+
+  if (answers[myName]) return;
+
+  answers[myName] = answer;
+  addAnswerCard(myName, answer);
+
+  $("myAnswer").disabled = true;
+  $("submitAnswerButton").disabled = true;
+
+  setMessage("answerStatus", "Your answer has been sent ♡");
+
+  const payload = {
+    index: currentQuestion,
+    name: myName,
+    answer
+  };
+
+  try {
+    await broadcast("answer", payload);
+    checkAnswers();
+  } catch (error) {
+    setMessage("answerStatus", error.message);
+  }
+}
+
+function receiveAnswer(payload) {
+  if (!payload || payload.index !== currentQuestion) return;
+  if (!["Comfort", "Felix"].includes(payload.name)) return;
+  if (typeof payload.answer !== "string") return;
+
+  if (answers[payload.name]) return;
+
+  answers[payload.name] = payload.answer;
+  addAnswerCard(payload.name, payload.answer);
+  checkAnswers();
+}
+
+function checkAnswers() {
+  const comfortAnswered = Boolean(answers.Comfort);
+  const felixAnswered = Boolean(answers.Felix);
+
+  if (comfortAnswered && felixAnswered) {
+    setMessage("partnerStatus", "Both answers are in! ♡");
+
+    history[currentQuestion] = {
+      question: questions[currentQuestion],
+      comfort: answers.Comfort,
+      felix: answers.Felix
+    };
+
+    $("nextQuestionButton").classList.remove("hidden");
+    $("nextQuestionButton").disabled = !isHost;
+    $("nextQuestionButton").textContent =
+      currentQuestion === 99 ? "See our results ♡" : "Next question →";
+  } else {
+    const partner = myName === "Comfort" ? "Felix" : "Comfort";
+    setMessage("partnerStatus", `Waiting for ${partner}'s answer...`);
+  }
+}
+
+async function nextQuestion() {
+  if (!isHost || !answers.Comfort || !answers.Felix) return;
+
+  if (currentQuestion === questions.length - 1) {
+    await broadcast("game-finished", {});
+    showResults();
+    return;
+  }
+
+  const next = currentQuestion + 1;
+
+  await broadcast("question-change", { index: next });
+  setCurrentQuestion(next);
+}
+
+function showResults() {
+  showScreen("resultsScreen");
+
+  $("resultsContent").replaceChildren();
+
+  history.forEach((item, index) => {
+    if (!item) return;
+
+    const card = document.createElement("div");
+    card.className = "answer-card";
+
+    const number = document.createElement("h3");
+    number.textContent = `Question ${index + 1}`;
+
+    const question = document.createElement("p");
+    question.textContent = item.question;
+
+    const comfort = document.createElement("p");
+    comfort.textContent = `Comfort: ${item.comfort || "No answer"}`;
+
+    const felix = document.createElement("p");
+    felix.textContent = `Felix: ${item.felix || "No answer"}`;
+
+    card.append(number, question, comfort, felix);
+    $("resultsContent").appendChild(card);
+  });
+
+  $("replayButton").disabled = !isHost;
+
+  setMessage(
+    "resultsMessage",
+    isHost
+      ? "You can start another round whenever you're both ready."
+      : "Waiting for the room creator to start another round."
+  );
+}
+
+async function replayGame() {
+  if (!isHost) return;
+
+  history = [];
+  await broadcast("game-start", {});
+  setCurrentQuestion(0);
+  showScreen("gameScreen");
+}
+
+/* BUTTONS */
+
+$("startButton").addEventListener("click", () => {
+  installPlayerChoice();
+  showScreen("homeScreen");
 });
+
+$("createRoomButton").addEventListener("click", createRoom);
+$("joinRoomButton").addEventListener("click", joinRoom);
+$("startGameButton").addEventListener("click", startGame);
+$("submitAnswerButton").addEventListener("click", submitAnswer);
+$("nextQuestionButton").addEventListener("click", nextQuestion);
+$("replayButton").addEventListener("click", replayGame);
+
+$("copyRoomButton").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(roomCode);
+    $("copyRoomButton").textContent = "Copied! ♡";
+  } catch {
+    setMessage("roomMessage", `Your room code is ${roomCode}`);
+  }
+});
+
+/* START */
+
+showScreen("welcomeScreen");
